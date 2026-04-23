@@ -1,12 +1,22 @@
 'use client'
 
-import { useRef } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { useRef, useState, useEffect } from 'react'
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+const heroSlides = [
+  { image: '/hero-slide-1.png' },
+  { image: '/hero-slide-2.png' },
+  { image: '/hero-slide-3.png' },
+  { image: '/hero-slide-4.png' },
+]
+
 export default function HeroSection() {
   const ref = useRef<HTMLDivElement>(null)
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start start', 'end start'],
@@ -17,23 +27,85 @@ export default function HeroSection() {
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0])
   const textY = useTransform(scrollYProgress, [0, 1], ['0%', '100%'])
 
+  // Auto-rotate slides every 5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIsTransitioning(true)
+      setTimeout(() => {
+        setCurrentSlide((prev) => (prev + 1) % heroSlides.length)
+        setIsTransitioning(false)
+      }, 800)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Manual slide navigation
+  const goToSlide = (index: number) => {
+    if (index === currentSlide) return
+    setIsTransitioning(true)
+    setTimeout(() => {
+      setCurrentSlide(index)
+      setIsTransitioning(false)
+    }, 800)
+  }
+
   return (
     <section id="home" ref={ref} className="relative h-screen overflow-hidden">
-      {/* Background Image with Parallax */}
+      {/* Background with Parallax */}
       <motion.div style={{ y, scale }} className="absolute inset-0">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              "url('/hero-banner.jpg')",
-          }}
-        />
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black" />
+        {/* Slideshow Background */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0, scale: 1.15 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 1.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="absolute inset-0"
+          >
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{
+                backgroundImage: `url('${heroSlides[currentSlide].image}')`,
+              }}
+            />
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/50 to-black" />
         <div className="absolute inset-0 bg-gradient-to-r from-amber-900/20 via-transparent to-amber-900/20" />
       </motion.div>
 
-      {/* Animated particles/lines */}
+      {/* Animated Golden Particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(12)].map((_, i) => (
+          <motion.div
+            key={`particle-${i}`}
+            className="absolute rounded-full"
+            style={{
+              width: Math.random() * 3 + 1 + 'px',
+              height: Math.random() * 3 + 1 + 'px',
+              left: Math.random() * 100 + '%',
+              background: `rgba(217, 119, 6, ${Math.random() * 0.5 + 0.2})`,
+              boxShadow: `0 0 ${Math.random() * 8 + 4}px rgba(217, 119, 6, ${Math.random() * 0.3})`,
+            }}
+            animate={{
+              y: [0, -(Math.random() * 150 + 80)],
+              x: [0, (Math.random() - 0.5) * 60],
+              opacity: [0, Math.random() * 0.7 + 0.3, 0],
+            }}
+            transition={{
+              duration: Math.random() * 4 + 3,
+              repeat: Infinity,
+              delay: Math.random() * 4,
+              ease: 'easeOut',
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Animated vertical amber lines */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(5)].map((_, i) => (
           <motion.div
@@ -118,6 +190,40 @@ export default function HeroSection() {
             Explore Phones
             <ChevronDown className="w-5 h-5 ml-2 animate-bounce" />
           </Button>
+        </motion.div>
+
+        {/* Slide Indicators */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 1.4 }}
+          className="flex gap-3 mt-10"
+        >
+          {heroSlides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goToSlide(i)}
+              className="group relative"
+              aria-label={`Go to slide ${i + 1}`}
+            >
+              <div
+                className={`w-10 h-1.5 rounded-full transition-all duration-500 ${
+                  i === currentSlide
+                    ? 'bg-amber-500'
+                    : 'bg-white/20 hover:bg-white/40'
+                }`}
+              />
+              {i === currentSlide && (
+                <motion.div
+                  className="absolute inset-0 bg-amber-400 rounded-full"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: isTransitioning ? 0 : 1 }}
+                  transition={{ duration: 5, ease: 'linear' }}
+                  style={{ transformOrigin: 'left' }}
+                />
+              )}
+            </button>
+          ))}
         </motion.div>
       </motion.div>
 
