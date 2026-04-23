@@ -1,10 +1,13 @@
-import { db } from '@/lib/db'
+import { connectToDatabase, ensureSeedData } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
 // POST admin login
 export async function POST(request: NextRequest) {
   try {
+    const db = await connectToDatabase()
+    await ensureSeedData(db)
+    
     const body = await request.json()
     const { username, password } = body
 
@@ -12,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username and password are required' }, { status: 400 })
     }
 
-    const admin = await db.admin.findUnique({ where: { username } })
+    const admin = await db.collection('admins').findOne({ username })
 
     if (!admin || admin.password !== password) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
@@ -20,9 +23,11 @@ export async function POST(request: NextRequest) {
 
     // Set a simple session cookie
     const cookieStore = await cookies()
+    const isProduction = process.env.NODE_ENV === 'production'
+    
     cookieStore.set('admin_session', btoa(`${username}:${Date.now()}`), {
       httpOnly: true,
-      secure: false,
+      secure: isProduction,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24, // 24 hours
       path: '/',

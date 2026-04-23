@@ -1,13 +1,23 @@
-import { db } from '@/lib/db'
+import { connectToDatabase, ensureSeedData } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET all inquiries (admin only)
 export async function GET() {
   try {
-    const inquiries = await db.inquiry.findMany({
-      orderBy: { createdAt: 'desc' },
-    })
-    return NextResponse.json(inquiries)
+    const db = await connectToDatabase()
+    await ensureSeedData(db)
+    
+    const inquiries = await db.collection('inquiries')
+      .find({})
+      .sort({ createdAt: -1 })
+      .toArray()
+    
+    const inquiriesWithId = inquiries.map(({ _id, ...rest }) => ({
+      id: _id.toString(),
+      ...rest,
+    }))
+    
+    return NextResponse.json(inquiriesWithId)
   } catch (error) {
     console.error('Error fetching inquiries:', error)
     return NextResponse.json({ error: 'Failed to fetch inquiries' }, { status: 500 })
@@ -17,6 +27,7 @@ export async function GET() {
 // POST new inquiry
 export async function POST(request: NextRequest) {
   try {
+    const db = await connectToDatabase()
     const body = await request.json()
     const { customerName, phoneNumber, message, phoneCode, phoneName } = body
 
@@ -27,17 +38,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const inquiry = await db.inquiry.create({
-      data: {
-        customerName,
-        phoneNumber,
-        message: message || null,
-        phoneCode,
-        phoneName: phoneName || null,
-      },
-    })
+    const inquiry = {
+      customerName,
+      phoneNumber,
+      message: message || null,
+      phoneCode,
+      phoneName: phoneName || null,
+      createdAt: new Date(),
+    }
 
-    return NextResponse.json(inquiry, { status: 201 })
+    const result = await db.collection('inquiries').insertOne(inquiry)
+
+    return NextResponse.json(
+      { id: result.insertedId.toString(), ...inquiry },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Error creating inquiry:', error)
     return NextResponse.json({ error: 'Failed to create inquiry' }, { status: 500 })

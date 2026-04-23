@@ -13,17 +13,18 @@ A modern, responsive mobile store website for **Vaibhav Mobiles (Rajula)** — b
 - **Dark Theme** — Black + Gold/Amber color scheme throughout
 - **Mobile First** — Fully responsive with hamburger menu on mobile
 - **Smooth Animations** — Powered by Framer Motion
+- **Vercel Ready** — Uses MongoDB Atlas (cloud database) for full serverless compatibility
 
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS 4 + shadcn/ui
-- **Database**: SQLite with Prisma ORM
-- **Authentication**: JWT-based admin sessions (cookie)
+- **Database**: MongoDB Atlas (cloud) with native MongoDB driver
+- **Authentication**: Cookie-based admin sessions
 - **Animations**: Framer Motion
 - **Icons**: Lucide React
-- **File Upload**: Multer (multi-image device upload)
+- **Image Storage**: Base64 in database (no filesystem dependency — works on Vercel)
 
 ## Getting Started
 
@@ -31,8 +32,18 @@ A modern, responsive mobile store website for **Vaibhav Mobiles (Rajula)** — b
 
 - Node.js 18+
 - npm or yarn
+- MongoDB Atlas account (free tier)
 
-### Installation
+### 1. Set up MongoDB Atlas
+
+1. Go to [MongoDB Atlas](https://www.mongodb.com/atlas) and create a free account
+2. Create a new cluster (free M0 tier)
+3. Create a database user with username and password
+4. Add `0.0.0.0/0` to the IP Access List (allow connections from anywhere)
+5. Click "Connect" → "Connect your application" → Copy the connection string
+6. Replace `<username>`, `<password>`, and cluster info in the connection string
+
+### 2. Install & Run
 
 ```bash
 # Clone the repository
@@ -42,17 +53,26 @@ cd vaibhav-mobile
 # Install dependencies
 npm install
 
-# Set up the database
-npx prisma db push
-
-# Seed the database (creates admin account + sample phones)
-curl -X POST http://localhost:3000/api/admin/seed
+# Create .env file with your MongoDB connection string
+cp .env.example .env
+# Edit .env and add your MONGODB_URI
 
 # Start the development server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+The database will **auto-seed** on first request with:
+- Admin account (username: `admin`, password: `admin123`)
+- 6 sample phones
+
+### 3. Deploy to Vercel
+
+1. Push your code to GitHub
+2. Go to [Vercel](https://vercel.com) and import the repository
+3. Add environment variable: `MONGODB_URI` = your MongoDB Atlas connection string
+4. Deploy!
 
 ### Admin Credentials
 
@@ -62,19 +82,17 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## Project Structure
 
 ```
-├── prisma/
-│   └── schema.prisma          # Database schema
 ├── public/
 │   ├── logo.png               # Store logo
 │   ├── hero-slide-*.png       # Hero slideshow images
-│   └── uploads/               # Uploaded phone images
+│   └── uploads/               # Legacy upload dir (not used on Vercel)
 ├── src/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── phones/        # Phone CRUD API
 │   │   │   ├── inquiries/     # Inquiry API
-│   │   │   ├── admin/         # Admin auth API
-│   │   │   └── upload/        # File upload API
+│   │   │   ├── admin/         # Admin auth + seed API
+│   │   │   └── upload/        # Image upload API (base64)
 │   │   ├── globals.css        # Global styles
 │   │   ├── layout.tsx         # Root layout
 │   │   └── page.tsx           # Main page
@@ -91,8 +109,9 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 │   │   ├── footer.tsx
 │   │   └── ui/                # shadcn/ui components
 │   └── lib/
-│       ├── db.ts              # Prisma client
+│       ├── db.ts              # MongoDB connection + auto-seed
 │       └── utils.ts           # Utility functions
+├── .env.example               # Environment variable template
 └── package.json
 ```
 
@@ -109,8 +128,15 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | POST | `/api/inquiries` | Submit inquiry |
 | POST | `/api/admin/login` | Admin login |
 | DELETE | `/api/admin/login` | Admin logout |
+| GET | `/api/admin/login` | Check admin session |
 | POST | `/api/admin/seed` | Seed database |
-| POST | `/api/upload` | Upload images |
+| POST | `/api/upload` | Upload images (returns base64) |
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MONGODB_URI` | Yes | MongoDB Atlas connection string |
 
 ## License
 
