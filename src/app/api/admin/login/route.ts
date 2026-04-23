@@ -6,6 +6,8 @@ import { cookies } from 'next/headers'
 export async function POST(request: NextRequest) {
   try {
     const db = await connectToDatabase()
+    
+    // Auto-seed on first login attempt (ensures admin exists)
     await ensureSeedData(db)
     
     const body = await request.json()
@@ -36,7 +38,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, username: admin.username })
   } catch (error) {
     console.error('Error during admin login:', error)
-    return NextResponse.json({ error: 'Login failed' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Login failed. Please check if MONGODB_URI is set correctly in Vercel environment variables.',
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined 
+    }, { status: 500 })
   }
 }
 

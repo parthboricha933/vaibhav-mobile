@@ -1,4 +1,4 @@
-import { connectToDatabase, ensureSeedData } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 
@@ -10,7 +10,6 @@ function generate4DigitCode(): string {
 export async function GET() {
   try {
     const db = await connectToDatabase()
-    await ensureSeedData(db)
     
     const phones = await db.collection('phones')
       .find({})
@@ -25,7 +24,10 @@ export async function GET() {
     return NextResponse.json(phonesWithId)
   } catch (error) {
     console.error('Error fetching phones:', error)
-    return NextResponse.json({ error: 'Failed to fetch phones' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to fetch phones',
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined 
+    }, { status: 500 })
   }
 }
 
@@ -73,6 +75,9 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     console.error('Error creating phone:', error)
-    return NextResponse.json({ error: 'Failed to create phone' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to create phone',
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined 
+    }, { status: 500 })
   }
 }

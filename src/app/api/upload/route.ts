@@ -1,5 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Max image size in bytes (2MB per image after compression)
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024
+
+// Compress and resize image using Sharp
+async function compressImage(buffer: Buffer, mimeType: string): Promise<{ dataUrl: string; size: number }> {
+  try {
+    const sharp = (await import('sharp')).default
+    
+    // Resize to max 800px width/height and compress
+    const compressed = await sharp(buffer)
+      .resize(800, 800, { 
+        fit: 'inside', 
+        withoutEnlargement: true 
+      })
+      .jpeg({ quality: 75 })
+      .toBuffer()
+    
+    const base64 = compressed.toString('base64')
+    const dataUrl = `data:image/jpeg;base64,${base64}`
+    
+    return { dataUrl, size: compressed.length }
+  } catch (error) {
+    console.error('Sharp compression error, falling back to raw base64:', error)
+    // Fallback to raw base64 if sharp fails
+    const base64 = buffer.toString('base64')
+    const dataUrl = `data:${mimeType};base64,${base64}`
+    return { dataUrl, size: buffer.length }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
@@ -16,11 +46,14 @@ export async function POST(request: NextRequest) {
 
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
-
-      // Convert to base64 data URL (works on Vercel - no filesystem needed)
       const mimeType = file.type || 'image/jpeg'
-      const base64 = buffer.toString('base64')
-      const dataUrl = `data:${mimeType};base64,${base64}`
+
+      // Compress the image
+      const { dataUrl, size } = await compressImage(buffer, mimeType)
+
+      if (size > MAX_IMAGE_SIZE) {
+        console.warn(`Image still large after compression: ${size} bytes`)
+      }
 
       imageUrls.push(dataUrl)
     }
@@ -32,6 +65,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ imageUrls })
   } catch (error) {
     console.error('Error uploading files:', error)
-    return NextResponse.json({ error: 'Failed to upload files' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to upload files',
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined 
+    }, { status: 500 })
   }
 }

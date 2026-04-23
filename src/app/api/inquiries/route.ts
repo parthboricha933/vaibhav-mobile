@@ -1,11 +1,10 @@
-import { connectToDatabase, ensureSeedData } from '@/lib/db'
+import { connectToDatabase } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET all inquiries (admin only)
 export async function GET() {
   try {
     const db = await connectToDatabase()
-    await ensureSeedData(db)
     
     const inquiries = await db.collection('inquiries')
       .find({})
@@ -20,7 +19,10 @@ export async function GET() {
     return NextResponse.json(inquiriesWithId)
   } catch (error) {
     console.error('Error fetching inquiries:', error)
-    return NextResponse.json({ error: 'Failed to fetch inquiries' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to fetch inquiries',
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined 
+    }, { status: 500 })
   }
 }
 
@@ -55,6 +57,9 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     console.error('Error creating inquiry:', error)
-    return NextResponse.json({ error: 'Failed to create inquiry' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to create inquiry',
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined 
+    }, { status: 500 })
   }
 }

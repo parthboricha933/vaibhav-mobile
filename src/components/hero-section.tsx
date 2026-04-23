@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,8 +22,7 @@ export default function HeroSection() {
     offset: ['start start', 'end start'],
   })
 
-  const y = useTransform(scrollYProgress, [0, 1], ['0%', '50%'])
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.2])
+  const y = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0])
   const textY = useTransform(scrollYProgress, [0, 1], ['0%', '100%'])
 
@@ -40,52 +39,53 @@ export default function HeroSection() {
   }, [])
 
   // Manual slide navigation
-  const goToSlide = (index: number) => {
-    if (index === currentSlide) return
+  const goToSlide = useCallback((index: number) => {
+    if (index === currentSlide || isTransitioning) return
     setIsTransitioning(true)
     setTimeout(() => {
       setCurrentSlide(index)
       setIsTransitioning(false)
     }, 800)
-  }
+  }, [currentSlide, isTransitioning])
 
   return (
     <section id="home" ref={ref} className="relative h-screen overflow-hidden">
       {/* Background with Parallax */}
-      <motion.div style={{ y, scale }} className="absolute inset-0">
-        {/* Slideshow Background */}
+      <motion.div style={{ y }} className="absolute inset-0">
+        {/* Slideshow Background - using img tag for crisp rendering */}
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}
-            initial={{ opacity: 0, scale: 1.15 }}
+            initial={{ opacity: 0, scale: 1.05 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            exit={{ opacity: 0, scale: 1.05 }}
             transition={{ duration: 1.2, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="absolute inset-0"
           >
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{
-                backgroundImage: `url('${heroSlides[currentSlide].image}')`,
-              }}
+            <img
+              src={heroSlides[currentSlide].image}
+              alt={`Vaibhav Mobiles - Slide ${currentSlide + 1}`}
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ imageRendering: 'auto' }}
+              loading={currentSlide === 0 ? 'eager' : 'lazy'}
             />
           </motion.div>
         </AnimatePresence>
 
-        {/* Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/50 to-black" />
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-900/20 via-transparent to-amber-900/20" />
+        {/* Gradient Overlays - lighter to show images more clearly */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50" />
       </motion.div>
 
       {/* Animated Golden Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(12)].map((_, i) => (
+        {[...Array(15)].map((_, i) => (
           <motion.div
             key={`particle-${i}`}
             className="absolute rounded-full"
             style={{
-              width: Math.random() * 3 + 1 + 'px',
-              height: Math.random() * 3 + 1 + 'px',
+              width: Math.random() * 4 + 1 + 'px',
+              height: Math.random() * 4 + 1 + 'px',
               left: Math.random() * 100 + '%',
               background: `rgba(217, 119, 6, ${Math.random() * 0.5 + 0.2})`,
               boxShadow: `0 0 ${Math.random() * 8 + 4}px rgba(217, 119, 6, ${Math.random() * 0.3})`,
@@ -105,29 +105,6 @@ export default function HeroSection() {
         ))}
       </div>
 
-      {/* Animated vertical amber lines */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(5)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-[1px] bg-gradient-to-b from-transparent via-amber-500/30 to-transparent"
-            style={{
-              left: `${20 + i * 15}%`,
-              height: '100%',
-            }}
-            animate={{
-              opacity: [0, 0.5, 0],
-              scaleY: [0, 1, 0],
-            }}
-            transition={{
-              duration: 3 + i * 0.5,
-              repeat: Infinity,
-              delay: i * 0.4,
-            }}
-          />
-        ))}
-      </div>
-
       {/* Content */}
       <motion.div
         style={{ opacity, y: textY }}
@@ -139,7 +116,7 @@ export default function HeroSection() {
           transition={{ duration: 0.8, delay: 0.3 }}
           className="mb-4"
         >
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium">
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium backdrop-blur-sm">
             <Sparkles className="w-4 h-4" />
             Your Trusted Mobile Store in Rajula
           </span>
