@@ -12,7 +12,7 @@ model Phone {
   name        String
   description String
   price       String
-  imageURL    String
+  images      String   // JSON string: array of image URLs
   code        String   @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

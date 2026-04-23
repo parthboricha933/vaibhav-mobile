@@ -11,7 +11,7 @@ interface PhoneData {
   name: string
   description: string
   price: string
-  imageURL: string
+  images: string[]
   code: string
 }
 

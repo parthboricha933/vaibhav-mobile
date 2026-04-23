@@ -19,7 +19,7 @@ interface PhoneData {
   name: string
   description: string
   price: string
-  imageURL: string
+  images: string[]
   code: string
 }
 
@@ -52,10 +52,9 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     name: '',
     description: '',
     price: '',
-    imageURL: '',
   })
+  const [imageUrls, setImageUrls] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
-  const [imagePreview, setImagePreview] = useState('')
 
   useEffect(() => {
     fetchPhones()
@@ -85,13 +84,15 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
     setUploading(true)
     try {
       const formDataUpload = new FormData()
-      formDataUpload.append('file', file)
+      for (let i = 0; i < files.length; i++) {
+        formDataUpload.append('files', files[i])
+      }
 
       const res = await fetch('/api/upload', {
         method: 'POST',
@@ -99,25 +100,27 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       })
 
       const data = await res.json()
-      if (data.imageURL) {
-        setFormData((prev) => ({ ...prev, imageURL: data.imageURL }))
-        setImagePreview(data.imageURL)
+      if (data.imageUrls && data.imageUrls.length > 0) {
+        setImageUrls((prev) => [...prev, ...data.imageUrls])
       }
     } catch (err) {
-      console.error('Error uploading image:', err)
+      console.error('Error uploading images:', err)
     } finally {
       setUploading(false)
+      // Reset the file input so the same files can be re-selected
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
-  const handleImageURLChange = (url: string) => {
-    setFormData((prev) => ({ ...prev, imageURL: url }))
-    setImagePreview(url)
+  const removeImage = (index: number) => {
+    setImageUrls((prev) => prev.filter((_, i) => i !== index))
   }
 
   const resetForm = () => {
-    setFormData({ name: '', description: '', price: '', imageURL: '' })
-    setImagePreview('')
+    setFormData({ name: '', description: '', price: '' })
+    setImageUrls([])
     setEditingPhone(null)
     setShowPhoneForm(false)
   }
@@ -128,23 +131,33 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       name: phone.name,
       description: phone.description,
       price: phone.price,
-      imageURL: phone.imageURL,
     })
-    setImagePreview(phone.imageURL)
+    setImageUrls(phone.images || [])
     setShowPhoneForm(true)
   }
 
   const handleSubmitPhone = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (imageUrls.length === 0) {
+      alert('Please upload at least one image')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
+      const payload = {
+        ...formData,
+        images: imageUrls,
+      }
+
       if (editingPhone) {
         // Update
         const res = await fetch(`/api/phones/${editingPhone.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         })
         if (!res.ok) throw new Error('Failed to update phone')
       } else {
@@ -152,7 +165,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
         const res = await fetch('/api/phones', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         })
         if (!res.ok) throw new Error('Failed to create phone')
       }
@@ -310,54 +323,90 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                           />
                         </div>
 
-                        {/* Image Upload */}
-                        <div className="space-y-2">
-                          <Label className="text-gray-300">Phone Image</Label>
-                          <div className="flex flex-col sm:flex-row gap-3">
-                            <div className="flex-1">
-                              <Input
-                                placeholder="Image URL or upload below"
-                                value={formData.imageURL}
-                                onChange={(e) => handleImageURLChange(e.target.value)}
-                                className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500"
-                              />
-                            </div>
-                            <div>
-                              <input
-                                type="file"
-                                ref={fileInputRef}
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                              />
-                              <Button
+                        {/* Image Upload Section */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-gray-300">
+                              Phone Images * <span className="text-gray-500 text-xs">(Upload multiple images to cover every part of the phone)</span>
+                            </Label>
+                            <Badge variant="outline" className="border-gray-700 text-gray-400 text-xs">
+                              {imageUrls.length} image{imageUrls.length !== 1 ? 's' : ''}
+                            </Badge>
+                          </div>
+
+                          {/* Upload Button */}
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            accept="image/*"
+                            multiple
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploading}
+                            className="w-full border-dashed border-2 border-gray-700 text-gray-300 hover:border-amber-500/50 hover:text-amber-400 h-20"
+                          >
+                            {uploading ? (
+                              <>
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <Upload className="w-6 h-6" />
+                                <span className="text-sm">Click to upload images from device</span>
+                                <span className="text-xs text-gray-500">Select multiple images (front, back, sides, etc.)</span>
+                              </div>
+                            )}
+                          </Button>
+
+                          {/* Image Previews Grid */}
+                          {imageUrls.length > 0 && (
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                              {imageUrls.map((url, index) => (
+                                <div key={index} className="relative group">
+                                  <div className="aspect-square rounded-lg overflow-hidden border border-gray-700 bg-gray-800">
+                                    <img
+                                      src={url}
+                                      alt={`Upload ${index + 1}`}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        ;(e.target as HTMLImageElement).src =
+                                          'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop'
+                                      }}
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeImage(index)}
+                                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                  <div className="absolute bottom-1 left-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+                                    {index + 1}
+                                  </div>
+                                </div>
+                              ))}
+
+                              {/* Add more images button */}
+                              <button
                                 type="button"
-                                variant="outline"
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={uploading}
-                                className="border-gray-700 text-gray-300 hover:border-amber-500/50 hover:text-amber-400"
+                                className="aspect-square rounded-lg border-2 border-dashed border-gray-700 hover:border-amber-500/50 flex items-center justify-center text-gray-500 hover:text-amber-400 transition-colors"
                               >
-                                {uploading ? (
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                  <Upload className="w-4 h-4 mr-2" />
-                                )}
-                                {uploading ? 'Uploading...' : 'Upload'}
-                              </Button>
+                                <Plus className="w-6 h-6" />
+                              </button>
                             </div>
-                          </div>
-                          {imagePreview && (
-                            <div className="mt-2 relative w-32 h-32 rounded-lg overflow-hidden border border-gray-700">
-                              <img
-                                src={imagePreview}
-                                alt="Preview"
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  ;(e.target as HTMLImageElement).src =
-                                    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop'
-                                }}
-                              />
-                            </div>
+                          )}
+
+                          {imageUrls.length === 0 && (
+                            <p className="text-xs text-red-400/70">At least one image is required. Upload photos of the phone from different angles.</p>
                           )}
                         </div>
 
@@ -373,7 +422,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         <div className="flex gap-3">
                           <Button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || imageUrls.length === 0}
                             className="bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                           >
                             {isSubmitting ? (
@@ -406,7 +455,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     <div className="flex gap-3 p-4">
                       <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
                         <img
-                          src={phone.imageURL}
+                          src={phone.images?.[0] || 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop'}
                           alt={phone.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -421,6 +470,8 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         <div className="flex items-center gap-1 mt-1">
                           <Hash className="w-3 h-3 text-gray-500" />
                           <span className="text-xs text-gray-500 font-mono">{phone.code}</span>
+                          <ImageIcon className="w-3 h-3 text-gray-500 ml-2" />
+                          <span className="text-xs text-gray-500">{phone.images?.length || 0} imgs</span>
                         </div>
                       </div>
                       <div className="flex flex-col gap-1">

@@ -1,7 +1,8 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
-import { IndianRupee, QrCode, MessageCircle, X } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { IndianRupee, QrCode, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -14,7 +15,7 @@ interface PhoneData {
   name: string
   description: string
   price: string
-  imageURL: string
+  images: string[]
   code: string
 }
 
@@ -26,16 +27,25 @@ interface PhoneDetailModalProps {
 }
 
 export default function PhoneDetailModal({ isOpen, onClose, phone, onInquire }: PhoneDetailModalProps) {
+  const [currentImage, setCurrentImage] = useState(0)
+
   if (!phone) return null
+
+  const images = phone.images && phone.images.length > 0
+    ? phone.images
+    : ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop']
+
+  const nextImage = () => setCurrentImage((prev) => (prev + 1) % images.length)
+  const prevImage = () => setCurrentImage((prev) => (prev - 1 + images.length) % images.length)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-lg p-0 overflow-hidden">
-        {/* Image */}
+        {/* Main Image */}
         <div className="relative aspect-video bg-gray-800">
           <img
-            src={phone.imageURL}
-            alt={phone.name}
+            src={images[currentImage]}
+            alt={`${phone.name} - Image ${currentImage + 1}`}
             className="w-full h-full object-cover"
             onError={(e) => {
               ;(e.target as HTMLImageElement).src =
@@ -47,7 +57,65 @@ export default function PhoneDetailModal({ isOpen, onClose, phone, onInquire }: 
             <QrCode className="w-3 h-3 mr-1" />
             {phone.code}
           </Badge>
+
+          {/* Image Navigation */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={prevImage}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/80 transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/80 transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+
+              {/* Dots */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {images.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentImage(i)}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      i === currentImage ? 'bg-amber-400 w-4' : 'bg-white/50 hover:bg-white/80'
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
+
+        {/* Thumbnail Strip */}
+        {images.length > 1 && (
+          <div className="flex gap-2 px-6 pt-3 overflow-x-auto">
+            {images.map((img, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentImage(i)}
+                className={`w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${
+                  i === currentImage
+                    ? 'border-amber-500 shadow-md shadow-amber-500/20'
+                    : 'border-gray-700 hover:border-gray-500'
+                }`}
+              >
+                <img
+                  src={img}
+                  alt={`${phone.name} thumbnail ${i + 1}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src =
+                      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop'
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Details */}
         <div className="p-6 space-y-4">
@@ -70,8 +138,8 @@ export default function PhoneDetailModal({ isOpen, onClose, phone, onInquire }: 
               <p className="text-amber-400 font-mono font-bold text-lg">{phone.code}</p>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50 text-center">
-              <p className="text-xs text-gray-500 mb-1">Availability</p>
-              <p className="text-green-400 font-bold text-lg">In Stock</p>
+              <p className="text-xs text-gray-500 mb-1">Images</p>
+              <p className="text-green-400 font-bold text-lg">{images.length} Photos</p>
             </div>
           </div>
 

@@ -23,7 +23,12 @@ export async function GET() {
     const phones = await db.phone.findMany({
       orderBy: { createdAt: 'desc' },
     })
-    return NextResponse.json(phones)
+    // Parse images JSON string for each phone
+    const phonesWithImages = phones.map((phone) => ({
+      ...phone,
+      images: JSON.parse(phone.images),
+    }))
+    return NextResponse.json(phonesWithImages)
   } catch (error) {
     console.error('Error fetching phones:', error)
     return NextResponse.json({ error: 'Failed to fetch phones' }, { status: 500 })
@@ -34,10 +39,16 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, description, price, imageURL } = body
+    const { name, description, price, images } = body
 
-    if (!name || !description || !price || !imageURL) {
+    if (!name || !description || !price || !images) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
+    }
+
+    // images can be either an array or a JSON string
+    const imagesArray = typeof images === 'string' ? JSON.parse(images) : images
+    if (!Array.isArray(imagesArray) || imagesArray.length === 0) {
+      return NextResponse.json({ error: 'At least one image is required' }, { status: 400 })
     }
 
     const code = await generateUniqueCode()
@@ -47,12 +58,15 @@ export async function POST(request: NextRequest) {
         name,
         description,
         price,
-        imageURL,
+        images: JSON.stringify(imagesArray),
         code,
       },
     })
 
-    return NextResponse.json(phone, { status: 201 })
+    return NextResponse.json(
+      { ...phone, images: imagesArray },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Error creating phone:', error)
     return NextResponse.json({ error: 'Failed to create phone' }, { status: 500 })
