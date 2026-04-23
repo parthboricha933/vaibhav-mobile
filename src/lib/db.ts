@@ -1,7 +1,5 @@
 import { MongoClient, Db } from 'mongodb'
 
-const MONGODB_URI = process.env.MONGODB_URI || ''
-
 // Global cache for MongoDB connection - survives HMR in dev and cold starts in serverless
 declare global {
   // eslint-disable-next-line no-var
@@ -15,41 +13,39 @@ let cachedDb: Db | null = null
 
 export async function connectToDatabase(): Promise<Db> {
   // Return cached connection if available
-  if (cachedDb) {
+  if (cachedDb && cachedClient) {
     return cachedDb
   }
 
   // Check global cache (survives serverless cold starts in same instance)
-  if (globalThis._mongoDb) {
-    cachedClient = globalThis._mongoClient!
+  if (globalThis._mongoDb && globalThis._mongoClient) {
+    cachedClient = globalThis._mongoClient
     cachedDb = globalThis._mongoDb
     return cachedDb
   }
 
+  const MONGODB_URI = process.env.MONGODB_URI || ''
+
   // Validate environment variable at runtime, not at import time
   if (!MONGODB_URI) {
     throw new Error(
-      'MONGODB_URI environment variable is not set. Please add it in your Vercel project settings under Environment Variables.'
+      'MONGODB_URI is not set. Go to Vercel Dashboard → Settings → Environment Variables and add MONGODB_URI with your MongoDB Atlas connection string.'
     )
   }
 
   try {
     const client = new MongoClient(MONGODB_URI, {
-      connectTimeoutMS: 10000,
-      socketTimeoutMS: 30000,
-      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 15000,
+      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 15000,
       maxPoolSize: 10,
-      minPoolSize: 1,
+      minPoolSize: 0,
     })
     
     await client.connect()
     
-    // Extract database name from URI or use default
-    const dbName = MONGODB_URI.includes('mongodb.net') 
-      ? new URL(MONGODB_URI).pathname.slice(1) || 'vaibhav_mobiles'
-      : 'vaibhav_mobiles'
-    
-    const db = client.db(dbName)
+    // Always use 'vaibhav_mobiles' as database name
+    const db = client.db('vaibhav_mobiles')
     
     // Cache in module scope and global scope
     cachedClient = client
@@ -61,20 +57,37 @@ export async function connectToDatabase(): Promise<Db> {
     try {
       await db.collection('phones').createIndex({ code: 1 }, { unique: true })
       await db.collection('admins').createIndex({ username: 1 }, { unique: true })
-    } catch (indexError) {
+    } catch {
       // Index might already exist, that's fine
-      console.log('Index creation note:', indexError)
     }
     
     return db
-  } catch (error) {
-    console.error('MongoDB connection error:', error)
+  } catch (error: unknown) {
     // Reset cache on connection failure
     cachedClient = null
     cachedDb = null
     globalThis._mongoClient = undefined
     globalThis._mongoDb = undefined
-    throw error
+    
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error('MongoDB connection error:', errorMessage)
+    
+    throw new Error(
+      `MongoDB connection failed: ${errorMessage}. Please check: 1) MONGODB_URI is set correctly, 2) MongoDB Atlas allows connections from all IPs (0.0.0.0/0), 3) Database user credentials are correct.`
+    )
+  }
+}
+
+// Check if MongoDB is connected and return diagnostic info
+export async function checkDatabaseHealth(): Promise<{ connected: boolean; error?: string; phoneCount?: number; adminCount?: number }> {
+  try {
+    const db = await connectToDatabase()
+    const phoneCount = await db.collection('phones').countDocuments()
+    const adminCount = await db.collection('admins').countDocuments()
+    return { connected: true, phoneCount, adminCount }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    return { connected: false, error: errorMessage }
   }
 }
 
@@ -180,6 +193,5 @@ export async function ensureSeedData(db: Db) {
     }
   } catch (seedError) {
     console.error('Seed error (non-fatal):', seedError)
-    // Don't throw - seeding failure shouldn't crash the app
   }
 }

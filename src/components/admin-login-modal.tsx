@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog'
 
 interface AdminLoginModalProps {
@@ -39,7 +40,7 @@ export default function AdminLoginModal({ isOpen, onClose, onLogin }: AdminLogin
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Login failed')
+        setError(data.error || data.details || 'Login failed. Check if database is connected.')
         return
       }
 
@@ -48,7 +49,7 @@ export default function AdminLoginModal({ isOpen, onClose, onLogin }: AdminLogin
       setPassword('')
       onClose()
     } catch (err) {
-      setError('Login failed. Please try again.')
+      setError('Network error. Cannot reach the server.')
     } finally {
       setIsLogging(false)
     }
@@ -62,6 +63,9 @@ export default function AdminLoginModal({ isOpen, onClose, onLogin }: AdminLogin
             <Shield className="w-5 h-5 text-amber-500" />
             Admin Login
           </DialogTitle>
+          <DialogDescription className="text-gray-400 text-sm">
+            Sign in to manage phones and inquiries
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -95,9 +99,14 @@ export default function AdminLoginModal({ isOpen, onClose, onLogin }: AdminLogin
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 text-red-400 text-sm">
-              <AlertCircle className="w-4 h-4" />
-              {error}
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-red-400 text-sm font-medium">Login Failed</p>
+                  <p className="text-red-300/70 text-xs mt-1">{error}</p>
+                </div>
+              </div>
             </div>
           )}
 

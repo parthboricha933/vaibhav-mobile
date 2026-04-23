@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Pencil, Trash2, X, Upload, Phone, MessageCircle, ArrowLeft,
-  Save, Loader2, ImageIcon, Hash, Search as SearchIcon
+  Save, Loader2, ImageIcon, Hash, Search as SearchIcon, AlertTriangle, RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,6 +41,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [phones, setPhones] = useState<PhoneData[]>([])
   const [inquiries, setInquiries] = useState<InquiryData[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showPhoneForm, setShowPhoneForm] = useState(false)
   const [editingPhone, setEditingPhone] = useState<PhoneData | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -57,19 +58,49 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    fetchPhones()
-    fetchInquiries()
+    fetchData()
   }, [])
+
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [phonesRes, inquiriesRes] = await Promise.all([
+        fetch('/api/phones'),
+        fetch('/api/inquiries'),
+      ])
+      
+      const phonesData = await phonesRes.json()
+      const inquiriesData = await inquiriesRes.json()
+      
+      if (!phonesRes.ok) {
+        setError(phonesData.error || phonesData.details || 'Failed to load data. Check MONGODB_URI in Vercel environment variables.')
+        return
+      }
+      
+      if (Array.isArray(phonesData)) {
+        setPhones(phonesData)
+      }
+      if (Array.isArray(inquiriesData)) {
+        setInquiries(inquiriesData)
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err)
+      setError('Network error. Cannot reach the server.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchPhones = async () => {
     try {
       const res = await fetch('/api/phones')
       const data = await res.json()
-      setPhones(data)
+      if (Array.isArray(data)) {
+        setPhones(data)
+      }
     } catch (err) {
       console.error('Error fetching phones:', err)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -77,7 +108,9 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     try {
       const res = await fetch('/api/inquiries')
       const data = await res.json()
-      setInquiries(data)
+      if (Array.isArray(data)) {
+        setInquiries(data)
+      }
     } catch (err) {
       console.error('Error fetching inquiries:', err)
     }
@@ -107,7 +140,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       console.error('Error uploading images:', err)
     } finally {
       setUploading(false)
-      // Reset the file input so the same files can be re-selected
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -153,7 +185,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       }
 
       if (editingPhone) {
-        // Update
         const res = await fetch(`/api/phones/${editingPhone.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -161,7 +192,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
         })
         if (!res.ok) throw new Error('Failed to update phone')
       } else {
-        // Create
         const res = await fetch('/api/phones', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -188,6 +218,22 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       await fetchPhones()
     } catch (err) {
       console.error('Error deleting phone:', err)
+    }
+  }
+
+  const handleSeedDatabase = async () => {
+    if (!confirm('This will seed the database with admin account and sample phones (if empty). Continue?')) return
+    try {
+      const res = await fetch('/api/admin/seed', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        alert(`Seeded! Admin: ${data.username}, Password: ${data.password}`)
+        await fetchData()
+      } else {
+        alert('Seed failed: ' + (data.error || 'Unknown error'))
+      }
+    } catch (err) {
+      alert('Seed failed: Network error')
     }
   }
 
@@ -220,11 +266,46 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             </div>
             <h1 className="text-xl font-bold text-white">Admin Panel</h1>
           </div>
-          <Badge variant="outline" className="border-amber-500/30 text-amber-400">
-            {phones.length} Phones
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleSeedDatabase}
+              variant="outline"
+              size="sm"
+              className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 text-xs"
+            >
+              Seed DB
+            </Button>
+            <Badge variant="outline" className="border-amber-500/30 text-amber-400">
+              {phones.length} Phones
+            </Badge>
+          </div>
         </div>
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-red-400 font-medium text-sm">Database Connection Error</p>
+              <p className="text-red-300/70 text-xs mt-1">{error}</p>
+              <p className="text-gray-500 text-xs mt-2">
+                Make sure MONGODB_URI is set in Vercel Environment Variables with a valid MongoDB Atlas connection string.
+                Also ensure MongoDB Atlas allows connections from all IPs (0.0.0.0/0).
+              </p>
+            </div>
+            <Button
+              onClick={fetchData}
+              size="sm"
+              variant="ghost"
+              className="text-red-400 hover:text-red-300"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Tabs defaultValue="phones" className="space-y-6">
@@ -286,7 +367,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
 
                       <form onSubmit={handleSubmitPhone} className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {/* Name */}
                           <div className="space-y-2">
                             <Label className="text-gray-300">Phone Name *</Label>
                             <Input
@@ -297,8 +377,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                               required
                             />
                           </div>
-
-                          {/* Price */}
                           <div className="space-y-2">
                             <Label className="text-gray-300">Price *</Label>
                             <Input
@@ -311,7 +389,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                           </div>
                         </div>
 
-                        {/* Description */}
                         <div className="space-y-2">
                           <Label className="text-gray-300">Description *</Label>
                           <Textarea
@@ -334,7 +411,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                             </Badge>
                           </div>
 
-                          {/* Upload Button */}
                           <input
                             type="file"
                             ref={fileInputRef}
@@ -364,7 +440,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                             )}
                           </Button>
 
-                          {/* Image Previews Grid */}
                           {imageUrls.length > 0 && (
                             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                               {imageUrls.map((url, index) => (
@@ -392,8 +467,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                                   </div>
                                 </div>
                               ))}
-
-                              {/* Add more images button */}
                               <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
@@ -410,7 +483,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                           )}
                         </div>
 
-                        {/* Code display for editing */}
                         {editingPhone && (
                           <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
                             <p className="text-xs text-gray-500">Auto-generated Code</p>
@@ -418,7 +490,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                           </div>
                         )}
 
-                        {/* Submit */}
                         <div className="flex gap-3">
                           <Button
                             type="submit"
@@ -443,12 +514,19 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
               )}
             </AnimatePresence>
 
+            {/* Loading */}
+            {loading && (
+              <div className="text-center py-10">
+                <Loader2 className="w-6 h-6 text-amber-400 animate-spin mx-auto mb-2" />
+                <p className="text-gray-500">Loading phones...</p>
+              </div>
+            )}
+
             {/* Phone List */}
-            {loading ? (
-              <div className="text-center py-10 text-gray-500">Loading phones...</div>
-            ) : filteredPhones.length === 0 ? (
-              <div className="text-center py-10 text-gray-500">No phones found</div>
-            ) : (
+            {!loading && !error && filteredPhones.length === 0 && (
+              <div className="text-center py-10 text-gray-500">No phones found. Click "Add Phone" or "Seed DB" to add sample data.</div>
+            )}
+            {!loading && filteredPhones.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredPhones.map((phone) => (
                   <Card key={phone.id} className="bg-gray-900/80 border-gray-800 overflow-hidden group">
@@ -501,7 +579,11 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
 
           {/* Inquiries Tab */}
           <TabsContent value="inquiries" className="space-y-4">
-            {inquiries.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-10">
+                <Loader2 className="w-6 h-6 text-amber-400 animate-spin mx-auto" />
+              </div>
+            ) : inquiries.length === 0 ? (
               <div className="text-center py-20">
                 <MessageCircle className="w-12 h-12 text-gray-700 mx-auto mb-4" />
                 <p className="text-gray-500">No inquiries yet</p>

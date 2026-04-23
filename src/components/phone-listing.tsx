@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Phone, Search, SlidersHorizontal } from 'lucide-react'
+import { Phone, Search, SlidersHorizontal, AlertTriangle, RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import PhoneCard from './phone-card'
 
 interface PhoneData {
@@ -25,6 +26,7 @@ export default function PhoneListing({ onInquire, onViewDetails }: PhoneListingP
   const [filteredPhones, setFilteredPhones] = useState<PhoneData[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchPhones()
@@ -47,13 +49,33 @@ export default function PhoneListing({ onInquire, onViewDetails }: PhoneListingP
   }, [searchQuery, phones])
 
   const fetchPhones = async () => {
+    setLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/phones')
       const data = await res.json()
-      setPhones(data)
-      setFilteredPhones(data)
-    } catch (error) {
-      console.error('Error fetching phones:', error)
+      
+      if (!res.ok) {
+        setError(data.error || data.details || 'Failed to load phones. Please check your database connection.')
+        setPhones([])
+        setFilteredPhones([])
+        return
+      }
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setPhones(data)
+        setFilteredPhones(data)
+      } else {
+        setError('Unexpected data format from server.')
+        setPhones([])
+        setFilteredPhones([])
+      }
+    } catch (err) {
+      console.error('Error fetching phones:', err)
+      setError('Network error. Please check your connection and try again.')
+      setPhones([])
+      setFilteredPhones([])
     } finally {
       setLoading(false)
     }
@@ -111,8 +133,31 @@ export default function PhoneListing({ onInquire, onViewDetails }: PhoneListingP
           </div>
         </motion.div>
 
+        {/* Error State */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-lg mx-auto text-center py-12"
+          >
+            <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Unable to Load Phones</h3>
+            <p className="text-gray-400 text-sm mb-4">{error}</p>
+            <Button
+              onClick={fetchPhones}
+              variant="outline"
+              className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          </motion.div>
+        )}
+
         {/* Loading State */}
-        {loading && (
+        {loading && !error && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="animate-pulse">
@@ -134,7 +179,7 @@ export default function PhoneListing({ onInquire, onViewDetails }: PhoneListingP
         )}
 
         {/* Phone Grid */}
-        {!loading && filteredPhones.length > 0 && (
+        {!loading && !error && filteredPhones.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPhones.map((phone, index) => (
               <PhoneCard
@@ -149,7 +194,7 @@ export default function PhoneListing({ onInquire, onViewDetails }: PhoneListingP
         )}
 
         {/* Empty State */}
-        {!loading && filteredPhones.length === 0 && (
+        {!loading && !error && filteredPhones.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
