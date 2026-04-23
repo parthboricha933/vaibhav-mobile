@@ -198,6 +198,13 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
+            <div className="w-8 h-8 rounded-lg overflow-hidden border border-amber-500/20">
+              <img
+                src="/logo.jpg"
+                alt="Vaibhav Mobiles Logo"
+                className="w-full h-full object-cover"
+              />
+            </div>
             <h1 className="text-xl font-bold text-white">Admin Panel</h1>
           </div>
           <Badge variant="outline" className="border-amber-500/30 text-amber-400">

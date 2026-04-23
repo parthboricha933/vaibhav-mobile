@@ -9,8 +9,12 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center">
-              <Phone className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden border border-amber-500/20">
+              <img
+                src="/logo.jpg"
+                alt="Vaibhav Mobiles Logo"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <span className="text-sm font-bold text-white">Vaibhav Mobiles</span>

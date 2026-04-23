@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   description: "Explore the latest smartphones at unbeatable prices at Vaibhav Mobiles, Rajula. Browse, inquire, and find your perfect phone today!",
   keywords: ["Vaibhav Mobiles", "Rajula", "smartphones", "mobile store", "phone deals", "best phones"],
   authors: [{ name: "Vaibhav Mobiles" }],
+  icons: {
+    icon: "/logo.jpg",
+  },
   openGraph: {
     title: "Vaibhav Mobiles - Best Smartphone Deals in Rajula",
     description: "Explore the latest smartphones at unbeatable prices",

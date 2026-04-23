@@ -51,8 +51,12 @@ export default function Navbar({ onAdminLogin, isAdmin, onAdminPanel, onLogout }
             whileHover={{ scale: 1.02 }}
             onClick={() => scrollToSection('home')}
           >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <Phone className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden shadow-lg shadow-amber-500/20 border border-amber-500/20">
+              <img
+                src="/logo.jpg"
+                alt="Vaibhav Mobiles Logo"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="flex flex-col">
               <span className="text-lg sm:text-xl font-bold text-white tracking-tight">
