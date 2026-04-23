@@ -55,3 +55,27 @@ Stage Summary:
 - Image carousel on phone cards with hover-activated navigation
 - Image gallery in detail modal with thumbnails
 - Upload API handles batch file uploads
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Add iPhone 17 Pro Max video clip with cinematic effects and animations to hero page
+
+Work Log:
+- Read current hero-section.tsx and page.tsx structure
+- Generated iPhone 17 Pro Max hero image (1344x768) saved to /public/iphone17-hero.jpg
+- Generated iPhone 17 Pro Max detail image (768x1344) saved to /public/iphone17-detail.jpg
+- Completely redesigned hero-section.tsx with cinematic video-like effects
+- Added custom CSS animations to globals.css (shimmer, float, glow-pulse, ken-burns, scan-line)
+- Added hero-specific CSS classes (hero-gradient-text, ken-burns, hero-vignette)
+- Verified build succeeds with npx next build
+
+Stage Summary:
+- Hero page features iPhone 17 Pro Max with video-like cinematic animations
+- Auto-rotating between 2 slides every 6 seconds with smooth transitions
+- Multiple animation layers: 20 floating particles, scanning line, glow pulses, parallax, Ken Burns zoom
+- Slide indicators with progress bar animation
+- Feature tags with hover effects
+- Two CTA buttons (Explore Phones + Contact Us)
+- Corner decorations and side glow effects
+- Gold/amber brand color scheme throughout
